@@ -1,2 +1,11 @@
+# Ignore Python bytecode files
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environment folders
 .venv/
 .idea
+
+# Ignore all .npy files in the raw data folder
+data/raw/*.npy
