@@ -136,6 +136,8 @@ b3 = np.zeros((1, 3), dtype=np.float32)
 batch_size = 32
 epochs = 5
 learning_rate = 0.01
+
+# Training loop
 for epoch in range(epochs):
     epoch_loss = 0.0
     epoch_correct = 0
@@ -171,10 +173,17 @@ for epoch in range(epochs):
     avg_loss = epoch_loss / epoch_samples
     accuracy = epoch_correct / epoch_samples
 
+    P_val, _ = forward(X_val, W1, b1, W2, b2, W3, b3)
+    val_loss = cross_entropy(P_val, y_val)
+    val_predictions = np.argmax(P_val, axis=1)
+    val_accuracy = np.sum(val_predictions == y_val) / len(y_val)
+
     print(
         f"Epoch {epoch + 1}/{epochs} | "
-        f"Loss: {avg_loss:.4f} | "
-        f"Accuracy: {accuracy:.2%}"
+        f"Train Loss: {avg_loss:.4f} | "
+        f"Train Acc: {accuracy:.2%} | "
+        f"Val Loss: {val_loss:.4f} | "
+        f"Val Acc: {val_accuracy:.2%}"
     )
 
 
