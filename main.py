@@ -60,32 +60,42 @@ X_val, X_test, y_val, y_test= train_test_split(
     random_state= 42,
 )
 
+# First hidden layer
+X_batch = X_train[:32] # Select the first 32 samples from the training set as a batch
+rng = np.random.default_rng(seed=42)
+W1 = rng.standard_normal((784, 16)).astype(np.float32)
+W1 *= np.sqrt(2/784)
+b1 = np.zeros((1, 16), dtype=np.float32)
+Z1 = X_batch @ W1 + b1
+A1 = np.maximum(0, Z1)
 
-print("==========================================")
-print("First image label:", y[0])
-print("Last image label:", y[-1])
+# Second hidden layer
+W2 = rng.standard_normal((16, 8)).astype(np.float32)
+W2 *= np.sqrt(2/16)
+b2 = np.zeros((1, 8), dtype=np.float32)
+Z2 = A1 @ W2 + b2
+A2 = np.maximum(0, Z2)
 
-print("Image count:", len(X))
-print("Label shape:", y.shape)
+# Output layer
+W3 = rng.standard_normal((8, 3)).astype(np.float32)
+W3 *= np.sqrt(2/8)
+b3 = np.zeros((1, 3), dtype=np.float32)
+Z3 = A2 @ W3 + b3
 
-print("Cat images shape:", cat_images.shape)
-print("Cat labels shape:", cat_labels.shape)
+# Softmax activation function for the output layer
+def softmax(z):
+    shifted = z - np.max(z, axis=1, keepdims=True)
+    exp_values = np.exp(shifted)
 
-print("Apple images shape:", apple_images.shape)
-print("Apple labels shape:", apple_labels.shape)
+    return exp_values / np.sum(exp_values, axis=1, keepdims=True)
 
-print("Car images shape:", car_images.shape)
-print("Car labels shape:", car_labels.shape)
+probabilities = softmax(Z3)
+predictions = np.argmax(probabilities, axis=1)
 
-print("First 10 labels:", y[:10])
-print("Unique labels:", np.unique(y, return_counts=True))
+print("Predicted labels:", predictions[:5])
+print("Actual labels:", y_train[:5])
 
-# Print the split dataset shapes
-print("Training set shape:", X_train.shape, y_train.shape)
-print("Validation set shape:", X_val.shape, y_val.shape)
-print("Test set shape:", X_test.shape, y_test.shape)
-
-# Print the class distribution in each split
-print("Training classes:", np.bincount(y_train))
-print("Validation classes:", np.bincount(y_val))
-print("Test classes:", np.bincount(y_test))
+print("Probabilities shape:", probabilities.shape)
+print("First drawing: ", probabilities[0])
+print("Probabilities sum: \n", probabilities.sum(axis=1))
+print("Valid probabilities: ", np.allclose(probabilities.sum(axis=1), 1.0))
