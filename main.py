@@ -34,22 +34,53 @@ new_loss = 0.5 * (new_activation - target) ** 2 # Calculate the new loss using t
 print("Old loss:", old_loss)
 print("New loss:", new_loss)
 
-data = np.load(
+apple_data = np.load(
+    "data/raw/full_numpy_bitmap_apple.npy",
+    mmap_mode="r"
+)
+
+cat_data = np.load(
     "data/raw/full_numpy_bitmap_cat.npy",
     mmap_mode="r"
 )
 
-print("Dataset shape:", data.shape)
-print("First image shape:", data[0].shape)
+car_data = np.load(
+    "data/raw/full_numpy_bitmap_car.npy",
+    mmap_mode="r"
+)
 
-image = data[100].reshape(28, 28)  # Reshape the first image to 28x28
-normalized = image.astype(np.float32) / 255.0  # Normalize pixel values to [0, 1]
+cat_images = cat_data[:5000].astype(np.float32) / 255.0 # Normalize the pixel values to be between 0 and 1
+cat_labels = np.full(5000, 0, dtype=np.int64)
 
-print("Normalized range:", normalized.min(), normalized.max())
+apple_images = apple_data[:5000].astype(np.float32) / 255.0 # Normalize the pixel values to be between 0 and 1
+apple_labels = np.full(5000, 1, dtype=np.int64)
 
-import matplotlib.pyplot as plt
+car_images = car_data[:5000].astype(np.float32) / 255.0 # Normalize the pixel values to be between 0 and 1
+car_labels = np.full(5000, 2, dtype=np.int64)
 
-plt.imshow(normalized, cmap="gray")
-plt.title("Cat Drawing #100")
-plt.axis("off")
-plt.show()
+# Concatenate the images of cats, apples, and cars into a single array
+X = np.concatenate(
+    (cat_images, apple_images, car_images),
+    axis=0
+)
+
+y = np.concatenate(
+    (cat_labels, apple_labels, car_labels),
+    axis=0
+)
+
+print("==========================================")
+print("First image label:", y[0])
+print("Last image label:", y[-1])
+
+print("Image count:", len(X))
+print("Label shape:",len(y))
+
+print("Cat images shape:", cat_images.shape)
+print("Cat labels shape:", cat_labels.shape)
+
+print("Apple images shape:", apple_images.shape)
+print("Apple labels shape:", apple_labels.shape)
+
+print("Car images shape:", car_images.shape)
+print("Car labels shape:", car_labels.shape)
