@@ -1,38 +1,5 @@
 import numpy as np
-
-inputs = np.array([0.6, 0.2])
-weight = np.array([0.4, 0.8])
-bias = 0.05
-
-z = np.dot(inputs, weight) + bias
-print("Weighted sum:", z)
-
-def relu(z):
-    return np.maximum(0, z)
-
-activation = relu(z) # Calculate the activation using the ReLU function
-
-target = 1
-learning_rate = 0.01 # Fixed learning rate can be modified to a dynamic one if needed
-
-delta = (activation - target) * (z > 0) # Loss gradient with respect to z
-weight_gradients = inputs * delta # The Weight gradients are calculated from the inputs(x) and the delta (error/loss)
-bias_gradient = delta # The bias gradient is simply the delta (error/loss)
-
-weight -= learning_rate * weight_gradients # Get the weight(w) subtract it to (learning_rate * weight_gradients) to update the weight(w)
-bias -= learning_rate * bias_gradient # Get the bias(b) subtract it to (learning_rate * bias_gradient) to update the bias(b)
-
-new_z = np.dot(inputs, weight) + bias # Recalculate the weighted sum after updating weights and bias
-new_activation = relu(new_z) # Calculate the new activation using the ReLU function after updating weights and bias
-
-print("Before update:", activation)
-print("After update:", new_activation)
-
-old_loss = 0.5 * (activation - target) ** 2 # Calculate the old loss using the mean squared error formula: 0.5 * (activation - target) ** 2
-new_loss = 0.5 * (new_activation - target) ** 2 # Calculate the new loss using the mean squared error formula: 0.5 * (new_activation - target) ** 2
-
-print("Old loss:", old_loss)
-print("New loss:", new_loss)
+from sklearn.model_selection import train_test_split
 
 apple_data = np.load(
     "data/raw/full_numpy_bitmap_apple.npy",
@@ -77,6 +44,23 @@ indices = rng.permutation(len(X)) # Generate a random permutation of indices bas
 X = X[indices] # Shuffle the images using the random indices
 y = y[indices] # Shuffle the labels using the same random indices
 
+# Data splitting: Training, Validation, and Testing
+X_train, X_temp, y_train, y_temp = train_test_split(
+    X, y,
+    test_size=0.3,
+    stratify= y,
+    random_state= 42,
+)
+
+# Split the remaining 30% of the data into validation and test sets (15% each)
+X_val, X_test, y_val, y_test= train_test_split(
+    X_temp , y_temp,
+    test_size= 0.5,
+    stratify= y_temp,
+    random_state= 42,
+)
+
+
 print("==========================================")
 print("First image label:", y[0])
 print("Last image label:", y[-1])
@@ -95,3 +79,13 @@ print("Car labels shape:", car_labels.shape)
 
 print("First 10 labels:", y[:10])
 print("Unique labels:", np.unique(y, return_counts=True))
+
+# Print the split dataset shapes
+print("Training set shape:", X_train.shape, y_train.shape)
+print("Validation set shape:", X_val.shape, y_val.shape)
+print("Test set shape:", X_test.shape, y_test.shape)
+
+# Print the class distribution in each split
+print("Training classes:", np.bincount(y_train))
+print("Validation classes:", np.bincount(y_val))
+print("Test classes:", np.bincount(y_test))
