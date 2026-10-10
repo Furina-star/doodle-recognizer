@@ -60,27 +60,19 @@ X_val, X_test, y_val, y_test= train_test_split(
     random_state= 42,
 )
 
-# First hidden layer
-X_batch = X_train[:32] # Select the first 32 samples from the training set as a batch
-rng = np.random.default_rng(seed=42)
-W1 = rng.standard_normal((784, 16)).astype(np.float32)
-W1 *= np.sqrt(2/784)
-b1 = np.zeros((1, 16), dtype=np.float32)
-Z1 = X_batch @ W1 + b1
-A1 = np.maximum(0, Z1)
+# Forward Propagation
+def forward (X, W1, b1, W2, b2, W3, b3):
+    Z1 = X @ W1 + b1
+    A1 = np.maximum(0, Z1)  # ReLU activation
 
-# Second hidden layer
-W2 = rng.standard_normal((16, 8)).astype(np.float32)
-W2 *= np.sqrt(2/16)
-b2 = np.zeros((1, 8), dtype=np.float32)
-Z2 = A1 @ W2 + b2
-A2 = np.maximum(0, Z2)
+    Z2 = A1 @ W2 + b2
+    A2 = np.maximum(0, Z2)  # ReLU activation
 
-# Output layer
-W3 = rng.standard_normal((8, 3)).astype(np.float32)
-W3 *= np.sqrt(2/8)
-b3 = np.zeros((1, 3), dtype=np.float32)
-Z3 = A2 @ W3 + b3
+    Z3 = A2 @ W3 + b3
+    P = softmax(Z3)  # Softmax activation for output layer
+
+    cache = (Z1, A1, Z2, A2)
+    return P, cache
 
 # Softmax activation function for the output layer
 def softmax(z):
@@ -89,27 +81,102 @@ def softmax(z):
 
     return exp_values / np.sum(exp_values, axis=1, keepdims=True)
 
-probabilities = softmax(Z3)
-
 # Calculate the categorical cross-entropy loss for the batch
-y_batch = y_train[:32]
+def cross_entropy(P, y):
+    correct_probs = P[np.arange(len(y)), y]
+    safe_probs = np.clip(correct_probs, 1e-12, 1.0)
 
-correct_probs = probabilities[np.arange(len(y_batch)), y_batch]
-
-safe_probs = np.clip(correct_probs, 1e-12, 1.0)
-losses =  -np.log(safe_probs)
-batch_loss = np.mean(losses)
+    return -np.mean(np.log(safe_probs))
 
 
-print("Probability shape:", probabilities.shape)
-print("Label shape:", y_batch.shape)
-print("Loss:", batch_loss)
+# Backpropagation for the output layer
 
-assert probabilities.shape == (32, 3)
-assert y_batch.shape == (32,)
-assert np.isfinite(batch_loss)
-assert np.allclose(probabilities.sum(axis=1), 1.0)
+def backward(X_batch, y_batch, P, cache, W2, W3):
+    Z1, A1, Z2, A2 = cache
 
-print("All checks passed!")
+    # Backpropagation for the output layer
+    N = len(y_batch)
+    Y = np.eye(3, dtype=np.float32)[y_batch]
+    dZ3 = (P - Y) / N
+
+    dW3 = A2.T @ dZ3
+    db3 = np.sum(dZ3, axis=0, keepdims=True)
+
+    # Backpropagation for the second hidden layer
+    dA2 = dZ3 @ W3.T
+    dZ2 = dA2 * (Z2 > 0)
+
+    dW2 = A1.T @ dZ2
+    db2 = np.sum(dZ2, axis=0, keepdims=True)
+
+    # Backpropagation for the first hidden layer
+    dA1 = dZ2 @ W2.T
+    dZ1 = dA1 * (Z1 > 0)
+
+    dW1 = X_batch.T @ dZ1
+    db1 = np.sum(dZ1, axis=0, keepdims=True)
+
+    return dW1, db1, dW2, db2, dW3, db3
+
+# Initialize trainable parameters
+rng = np.random.default_rng(42)
+
+W1 = rng.standard_normal((784, 16)).astype(np.float32)
+W1 *= np.sqrt(2 / 784)
+b1 = np.zeros((1, 16), dtype=np.float32)
+
+W2 = rng.standard_normal((16, 8)).astype(np.float32)
+W2 *= np.sqrt(2 / 16)
+b2 = np.zeros((1, 8), dtype=np.float32)
+
+W3 = rng.standard_normal((8, 3)).astype(np.float32)
+W3 *= np.sqrt(2 / 8)
+b3 = np.zeros((1, 3), dtype=np.float32)
+
+batch_size = 32
+epochs = 5
+learning_rate = 0.01
+for epoch in range(epochs):
+    epoch_loss = 0.0
+    epoch_correct = 0
+    epoch_samples = 0
+
+    indices = rng.permutation(len(X_train))
+
+    for start in  range(0,len(X_train), batch_size):
+        batch_indices = indices[start:start + batch_size]
+
+        X_batch = X_train[batch_indices]
+        y_batch = y_train[batch_indices]
+
+        P, cache = forward(X_batch, W1, b1, W2, b2, W3, b3)
+        batch_loss = cross_entropy(P, y_batch)
+        predictions = np.argmax(P, axis=1)
+        epoch_loss += batch_loss * len(y_batch)
+        epoch_correct += np.sum(predictions == y_batch)
+        epoch_samples += len(y_batch)
+        gradient = backward(X_batch, y_batch, P, cache, W2, W3)
+
+        # Unpack the gradients
+        dW1, db1, dW2, db2, dW3, db3 = gradient
+
+        # Update the weights and biases using gradient descent
+        W3 -= learning_rate * dW3
+        b3 -= learning_rate * db3
+        W2 -= learning_rate * dW2
+        b2 -= learning_rate * db2
+        W1 -= learning_rate * dW1
+        b1 -= learning_rate * db1
+
+    avg_loss = epoch_loss / epoch_samples
+    accuracy = epoch_correct / epoch_samples
+
+    print(
+        f"Epoch {epoch + 1}/{epochs} | "
+        f"Loss: {avg_loss:.4f} | "
+        f"Accuracy: {accuracy:.2%}"
+    )
+
+
 
 
