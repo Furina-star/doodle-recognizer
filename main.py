@@ -90,12 +90,26 @@ def softmax(z):
     return exp_values / np.sum(exp_values, axis=1, keepdims=True)
 
 probabilities = softmax(Z3)
-predictions = np.argmax(probabilities, axis=1)
 
-print("Predicted labels:", predictions[:5])
-print("Actual labels:", y_train[:5])
+# Calculate the categorical cross-entropy loss for the batch
+y_batch = y_train[:32]
 
-print("Probabilities shape:", probabilities.shape)
-print("First drawing: ", probabilities[0])
-print("Probabilities sum: \n", probabilities.sum(axis=1))
-print("Valid probabilities: ", np.allclose(probabilities.sum(axis=1), 1.0))
+correct_probs = probabilities[np.arange(len(y_batch)), y_batch]
+
+safe_probs = np.clip(correct_probs, 1e-12, 1.0)
+losses =  -np.log(safe_probs)
+batch_loss = np.mean(losses)
+
+
+print("Probability shape:", probabilities.shape)
+print("Label shape:", y_batch.shape)
+print("Loss:", batch_loss)
+
+assert probabilities.shape == (32, 3)
+assert y_batch.shape == (32,)
+assert np.isfinite(batch_loss)
+assert np.allclose(probabilities.sum(axis=1), 1.0)
+
+print("All checks passed!")
+
+
