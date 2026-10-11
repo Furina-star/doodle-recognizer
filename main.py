@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import ConfusionMatrixDisplay
 from matplotlib.ticker import PercentFormatter
 
 apple_data = np.load(
@@ -171,7 +172,7 @@ rng_batches = np.random.default_rng(123)
 batch_size = 32 # Batch size for training
 epochs = 30 # Number of epochs to train the model
 patience = 5 # Number of epochs to wait for improvement before early stopping
-epochs_without_improvement = 0 # Counter for epochs without improvement
+epoch_without_improvement = 0 # Counter for epochs without improvement
 learning_rate = 0.1 # Learning rate for gradient descent
 hidden1 = 64 # Number of neurons in the first hidden layer
 hidden2 = 32 # Number of neurons in the second hidden layer
@@ -206,6 +207,7 @@ history = {
 }
 
 # Training loop
+print ("\nStarting training...")
 for epoch in range(epochs):
     epoch_loss = 0.0
     epoch_correct = 0
@@ -258,7 +260,7 @@ for epoch in range(epochs):
         ]
         epoch_without_improvement = 0
     else:
-        epochs_without_improvement += 1
+        epoch_without_improvement += 1
 
     history["train_loss"].append(avg_loss)
     history["val_loss"].append(val_loss)
@@ -274,20 +276,52 @@ for epoch in range(epochs):
     )
 
     # Early stopping check
-    if epochs_without_improvement >= patience:
-        print(f"Early stopping at Epoch {epoch + 1}. "f"Best epoch was {best_epoch}.")
+    if epoch_without_improvement >= patience:
+        print(f"Early stopping at Epoch {epoch + 1}. ", f"Best epoch was {best_epoch}.")
         break
 
 # After training: verify the checkpoint, then report on the held-out test set
-P_best_val, _ = forward(X_val, *best_params)
-verified_best_loss = cross_entropy(P_best_val, y_val)
+P_best, _ = forward(X_val, *best_params)
+y_pred = np.argmax(P_best, axis=1)
+verified_best_loss = cross_entropy(P_best, y_val)
 assert np.isclose(verified_best_loss, best_val_loss)  # confirms best_params matches the saved loss
 
 print(f"\nBest Epoch: {best_epoch}")
-print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_val_acc:.2%}")
+print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_val_acc:.2%}\n")
 
 epoch_completed = len(history["train_loss"])
 epoch_numbers = range(1, epoch_completed + 1)
+
+# Confusion matrix
+cm = np.zeros((3, 3), dtype=int)
+
+print("Confusion Matrix:")
+for actual, predicted in zip(y_val, y_pred):
+    cm[actual, predicted] += 1
+print(cm)
+
+correct_per_class = np.diag(cm)
+total_per_class = cm.sum(axis=1)
+recall = correct_per_class / total_per_class
+
+assert cm.sum() == len(y_val)
+cm_accuracy = np.trace(cm) / cm.sum()
+assert np.isclose(cm_accuracy, best_val_acc)
+
+print(f"\nOverall Accuracy: {cm_accuracy:.2%}")
+print(f"Cat Recall: {recall[0]:.2%}")
+print(f"Apple Recall: {recall[1]:.2%}")
+print(f"Car Recall: {recall[2]:.2%}")
+
+print("Total predictions:", cm.sum())
+
+# Plot the confusion matrix
+class_names = ["Cat", "Apple", "Car"]
+
+display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+display.plot(cmap="Blues", values_format="d")
+plt.title("Doodle Recognizer - Confusion Matrix")
+plt.show()
 
 # Plot the training and validation loss
 plt.figure(figsize=(8, 5))
