@@ -169,7 +169,9 @@ rng_batches = np.random.default_rng(123)
 
 # Set hyperparameters for training
 batch_size = 32 # Batch size for training
-epochs = 5 # Number of epochs to train the model
+epochs = 30 # Number of epochs to train the model
+patience = 5 # Number of epochs to wait for improvement before early stopping
+epochs_without_improvement = 0 # Counter for epochs without improvement
 learning_rate = 0.1 # Learning rate for gradient descent
 hidden1 = 64 # Number of neurons in the first hidden layer
 hidden2 = 32 # Number of neurons in the second hidden layer
@@ -181,7 +183,7 @@ best_params = None
 
 input_size = X_train.shape[1]
 W1 = rng_weights.standard_normal((input_size, hidden1)).astype(np.float32)
-W1 *= np.sqrt(2 / 784)
+W1 *= np.sqrt(2 / input_size)
 b1 = np.zeros((1, hidden1), dtype=np.float32)
 
 W2 = rng_weights.standard_normal((hidden1, hidden2)).astype(np.float32)
@@ -254,6 +256,9 @@ for epoch in range(epochs):
             W2.copy(), b2.copy(),
             W3.copy(), b3.copy()
         ]
+        epoch_without_improvement = 0
+    else:
+        epochs_without_improvement += 1
 
     history["train_loss"].append(avg_loss)
     history["val_loss"].append(val_loss)
@@ -268,22 +273,22 @@ for epoch in range(epochs):
         f"Val Acc: {val_accuracy:.2%}"
     )
 
+    # Early stopping check
+    if epochs_without_improvement >= patience:
+        print(f"Early stopping at Epoch {epoch + 1}. "f"Best epoch was {best_epoch}.")
+        break
+
 # After training: verify the checkpoint, then report on the held-out test set
 P_best_val, _ = forward(X_val, *best_params)
 verified_best_loss = cross_entropy(P_best_val, y_val)
 assert np.isclose(verified_best_loss, best_val_loss)  # confirms best_params matches the saved loss
 
-P_test, _ = forward(X_test, *best_params)
-test_loss = cross_entropy(P_test, y_test)
-test_accuracy = np.mean(np.argmax(P_test, axis=1) == y_test)
-
 print(f"\nBest Epoch: {best_epoch}")
 print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_val_acc:.2%}")
-print(f"Test Loss: {test_loss:.4f} | Test Accuracy: {test_accuracy:.2%}")
 
-epoch_numbers = range(1, epochs + 1)
+epoch_completed = len(history["train_loss"])
+epoch_numbers = range(1, epoch_completed + 1)
 
-"""
 # Plot the training and validation loss
 plt.figure(figsize=(8, 5))
 
@@ -314,4 +319,4 @@ plt.xticks(epoch_numbers)
 plt.legend()
 plt.grid(True)
 plt.show()
-"""
+
