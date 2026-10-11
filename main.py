@@ -98,7 +98,7 @@ def backward(X_batch, y_batch, P, cache, W2, W3):
 
     # Backpropagation for the output layer
     N = len(y_batch)
-    Y = np.eye(3, dtype=np.float32)[y_batch]
+    Y = np.eye(3, dtype=P.dtype)[y_batch]
     dZ3 = (P - Y) / N
 
     dW3 = A2.T @ dZ3
@@ -120,6 +120,50 @@ def backward(X_batch, y_batch, P, cache, W2, W3):
 
     return dW1, db1, dW2, db2, dW3, db3
 
+# Gradient Checking
+PARAM_NAMES = ("W1", "b1", "W2", "b2", "W3", "b3")
+def gradient_check(params, X, y, n_samples=5, epsilon=1e-5, tol=1e-4, seed=0):
+    # float64 everywhere: float32 is too noisy for epsilon = 1e-5
+    params = [p.astype(np.float64).copy() for p in params]
+    X = X.astype(np.float64)
+
+    # Analytical gradients: one forward + one backward pass for ALL params
+    P, cache = forward(X, *params)
+    grads = backward(X, y, P, cache, params[2], params[4])  # needs W2, W3
+
+    def loss():
+        P, _ = forward(X, *params)
+        return cross_entropy(P, y)
+
+    rng = np.random.default_rng(seed)
+    results = {}
+
+    for name, param, grad in zip(PARAM_NAMES, params, grads):
+        worst_error = 0.0
+
+        # Check a few random entries per parameter (all of them is too slow)
+        flat_indices = rng.choice(param.size, size=min(n_samples, param.size), replace=False)
+        for flat_idx in flat_indices:
+            idx = np.unravel_index(flat_idx, param.shape)
+            original = param[idx]
+
+            param[idx] = original + epsilon
+            loss_plus = loss()
+            param[idx] = original - epsilon
+            loss_minus = loss()
+            param[idx] = original  # always restore
+
+            numerical = (loss_plus - loss_minus) / (2 * epsilon)
+            analytical = grad[idx]
+            error = abs(analytical - numerical) / max(1e-8, abs(analytical) + abs(numerical))
+            worst_error = max(worst_error, error)
+
+        results[name] = worst_error
+        status = "PASSED" if worst_error < tol else "FAILED"
+        print(f"{name}: worst relative error = {worst_error:.2e}: {status}")
+
+    return results
+
 # Initialize trainable parameters
 rng = np.random.default_rng(42)
 
@@ -139,50 +183,8 @@ batch_size = 32
 epochs = 5
 learning_rate = 0.01
 
-# Gradient Checking
-X_check = X_train[:8]
-y_check = y_train[:8]
-
-W3_check = W3.astype(np.float64).copy()
-
-P_check, cache_check = forward(X_check, W1, b1, W2, b2, W3_check, b3)
-
-gradients = backward(X_check, y_check, P_check, cache_check, W2, W3_check)
-
-dW3_check = gradients[4]
-
-row, col = np.unravel_index(np.argmax(np.abs(dW3_check)), dW3_check.shape)
-analytical = dW3_check[row, col]
-original = W3_check[row, col]
-
-epsilon = 1e-5
-
-# Increase the weight slightly
-W3_check[row, col] = original + epsilon
-
-P_plus, _ = forward(X_check, W1, b1, W2, b2, W3_check, b3)
-
-loss_plus = cross_entropy(P_plus, y_check)
-
-# Decrease the weight slightly
-W3_check[row, col] = original - epsilon
-
-P_minus, _ = forward(X_check, W1, b1, W2, b2, W3_check, b3)
-
-loss_minus = cross_entropy(P_minus, y_check)
-
-W3_check[row, col] = original
-
-# Compute the numerical gradient
-numerical = (loss_plus - loss_minus) / (2 * epsilon)
-
-print("Analytical Gradient:", analytical)
-print("Numerical Gradient:", numerical)
-
-# Check if the analytical and numerical gradients passed through Relative Error formula
-relative_error = abs(analytical - numerical) / max(1e-8, abs(analytical) + abs(numerical))
-print("Relative Error:", relative_error)
-print("Gradient Check Passed:", relative_error < 1e-4)
+# Gradient Checking (the call is what makes it print)
+gradient_check([W1, b1, W2, b2, W3, b3], X_train[:8], y_train[:8])
 
 # Initialize history dictionary to store training and validation loss and accuracy
 history = {
