@@ -1,11 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.metrics import ConfusionMatrixDisplay
-from matplotlib.ticker import PercentFormatter
 from pathlib import Path
 from ann import forward, cross_entropy
 from data_loader import load_datasets
 from train import gradient_check, initialize_parameters, train_model
+from evaluate import evaluate_model
 
 # Define the categories for the doodle recognition task and the number of samples per class
 categories = [
@@ -70,11 +68,6 @@ assert np.isclose(verified_best_loss, best_val_loss)  # confirms best_params mat
 
 print(f"\nBest Epoch: {best_epoch}")
 print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_val_acc:.2%}\n")
-
-epoch_completed = len(history["train_loss"])
-epoch_numbers = range(1, epoch_completed + 1)
-plots_directory = Path("plots")
-plots_directory.mkdir(parents=True, exist_ok=True)
 
 # Save the best model parameters to a compressed .npz file
 models_path = Path("model/doodle_ann_v1.npz")
@@ -143,68 +136,8 @@ print("Model loading verification: PASSED")
 loaded_validation = np.argmax(P_loaded, axis=1)
 print(f"Loaded model validation accuracy: {np.mean(loaded_validation == y_val):.2%}")
 
-# Confusion matrix
-cm = np.zeros((num_classes, num_classes), dtype=int)
+# Evaluate the model using the evaluate_model function from evaluate.py
+cm, recall, evaluation_accuracy = evaluate_model(y_val=y_val, y_pred=y_pred, categories=categories, history=history, best_val_acc=best_val_acc, plots_directory="plots")
 
-print("\nConfusion Matrix:")
-for actual, predicted in zip(y_val, y_pred):
-    cm[actual, predicted] += 1
-print(cm)
 
-correct_per_class = np.diag(cm)
-total_per_class = cm.sum(axis=1)
-recall = correct_per_class / total_per_class
-
-assert cm.sum() == len(y_val)
-cm_accuracy = np.trace(cm) / cm.sum()
-assert np.isclose(cm_accuracy, best_val_acc)
-
-class_names = [category.title() for category in categories]
-
-for name, value in zip(class_names, recall):
-    print(f"{name} Recall: {value:.2%}")
-print("Total predictions:", cm.sum(), "\n")
-
-# Plot the confusion matrix
-display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
-display.plot(cmap="Blues", values_format="d")
-plt.title("Doodle Recognizer - Confusion Matrix")
-display.figure_.savefig(plots_directory / "confusion_matrix.png",dpi=200,bbox_inches="tight")
-
-# Plot the training and validation loss
-plt.figure(figsize=(8, 5))
-
-plt.plot(epoch_numbers, history["train_loss"], label="Training Loss")
-plt.plot(epoch_numbers, history["val_loss"], label="Validation Loss")
-
-plt.xlabel("Epoch")
-plt.ylabel("Cross-Entropy Loss")
-plt.title("Doodle Recognizer - Loss Curves")
-
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.savefig(plots_directory / "loss_curves.png",dpi=200,bbox_inches="tight")
-
-# Plot the training and validation accuracy
-plt.figure(figsize=(8, 5))
-
-plt.plot(epoch_numbers, history["train_acc"], label="Training Accuracy")
-plt.plot(epoch_numbers, history["val_acc"], label="Validation Accuracy")
-
-plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.title("Doodle Recognizer - Accuracy Curves")
-
-plt.gca().yaxis.set_major_formatter(PercentFormatter(1.0))
-plt.xticks(epoch_numbers)
-
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.savefig(plots_directory / "accuracy_curves.png",dpi=200,bbox_inches="tight")
-
-# Print the saved plot files
-for file in sorted(plots_directory.glob("*.png")):
-    print(f"Saved plot: {file}")
 

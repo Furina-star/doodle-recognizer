@@ -1,3 +1,8 @@
+"""
+This module contains functions for training a neural network model.
+It includes gradient checking, parameter initialization, and the training loop with early stopping and checkpointing.
+"""
+
 import numpy as np
 from ann import forward, backward, cross_entropy
 
