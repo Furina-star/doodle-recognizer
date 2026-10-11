@@ -92,7 +92,6 @@ def cross_entropy(P, y):
 
 
 # Backpropagation for the output layer
-
 def backward(X_batch, y_batch, P, cache, W2, W3):
     Z1, A1, Z2, A2 = cache
 
@@ -172,8 +171,8 @@ rng_batches = np.random.default_rng(123)
 batch_size = 32 # Batch size for training
 epochs = 5 # Number of epochs to train the model
 learning_rate = 0.1 # Learning rate for gradient descent
-hidden1 = 32 # Number of neurons in the first hidden layer
-hidden2 = 16 # Number of neurons in the second hidden layer
+hidden1 = 64 # Number of neurons in the first hidden layer
+hidden2 = 32 # Number of neurons in the second hidden layer
 
 # Initialize variables to track the best validation loss and corresponding epoch and parameters
 best_val_loss = float("inf")
@@ -206,18 +205,13 @@ history = {
 
 # Training loop
 for epoch in range(epochs):
-
-    # Compute validation loss and accuracy at the beginning of each epoch
-    P_val, _ = forward(X_val, W1, b1, W2, b2, W3, b3)
-    val_loss = cross_entropy(P_val, y_val)
-
     epoch_loss = 0.0
     epoch_correct = 0
     epoch_samples = 0
 
     indices = rng_batches.permutation(len(X_train))
 
-    for start in  range(0,len(X_train), batch_size):
+    for start in range(0, len(X_train), batch_size):
         batch_indices = indices[start:start + batch_size]
 
         X_batch = X_train[batch_indices]
@@ -229,10 +223,9 @@ for epoch in range(epochs):
         epoch_loss += batch_loss * len(y_batch)
         epoch_correct += np.sum(predictions == y_batch)
         epoch_samples += len(y_batch)
-        gradient = backward(X_batch, y_batch, P, cache, W2, W3)
 
         # Unpack the gradients
-        dW1, db1, dW2, db2, dW3, db3 = gradient
+        dW1, db1, dW2, db2, dW3, db3 = backward(X_batch, y_batch, P, cache, W2, W3)
 
         # Update the weights and biases using gradient descent
         W3 -= learning_rate * dW3
@@ -245,10 +238,22 @@ for epoch in range(epochs):
     avg_loss = epoch_loss / epoch_samples
     accuracy = epoch_correct / epoch_samples
 
+    # Validation pass
     P_val, _ = forward(X_val, W1, b1, W2, b2, W3, b3)
     val_loss = cross_entropy(P_val, y_val)
     val_predictions = np.argmax(P_val, axis=1)
-    val_accuracy = np.sum(val_predictions == y_val) / len(y_val)
+    val_accuracy = np.mean(val_predictions == y_val)
+
+    # Checkpointing: save a copy of the parameters if validation loss improves
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        best_val_acc = val_accuracy
+        best_epoch = epoch + 1
+        best_params = [
+            W1.copy(), b1.copy(),
+            W2.copy(), b2.copy(),
+            W3.copy(), b3.copy()
+        ]
 
     history["train_loss"].append(avg_loss)
     history["val_loss"].append(val_loss)
@@ -263,17 +268,18 @@ for epoch in range(epochs):
         f"Val Acc: {val_accuracy:.2%}"
     )
 
-P_train_final, _ = forward(X_train, W1, b1, W2, b2, W3, b3)
+# After training: verify the checkpoint, then report on the held-out test set
+P_best_val, _ = forward(X_val, *best_params)
+verified_best_loss = cross_entropy(P_best_val, y_val)
+assert np.isclose(verified_best_loss, best_val_loss)  # confirms best_params matches the saved loss
 
-train_predictions = np.argmax(P_train_final, axis=1)
-final_train_acc = np.mean(train_predictions == y_train)
-train_end_accuracy = np.mean(np.argmax(P_train_final, axis=1) == y_train)
-train_end_loss = cross_entropy(P_train_final, y_train)
+P_test, _ = forward(X_test, *best_params)
+test_loss = cross_entropy(P_test, y_test)
+test_accuracy = np.mean(np.argmax(P_test, axis=1) == y_test)
 
-print(f"End Training Accuracy: {final_train_acc:.2%}")
-print(f"End Validation Accuracy: {val_accuracy:.2%}")
-print(f"End Training Loss: {train_end_loss:.4f}")
-print(f"End Validation Loss: {train_end_accuracy:.4f}")
+print(f"\nBest Epoch: {best_epoch}")
+print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_val_acc:.2%}")
+print(f"Test Loss: {test_loss:.4f} | Test Accuracy: {test_accuracy:.2%}")
 
 epoch_numbers = range(1, epochs + 1)
 
