@@ -6,7 +6,13 @@ from matplotlib.ticker import PercentFormatter
 from pathlib import Path
 
 # Load the dataset from data/raw/
-categories = ["cat", "apple", "car"]
+categories = [
+    "cat", "apple", "car",
+    "house", "tree", "star",
+    "fish", "clock", "umbrella",
+    "sun"
+]
+
 sample_per_class = 5000
 num_classes = len(categories)
 data_directory = Path("data/raw")
@@ -169,18 +175,21 @@ def gradient_check(params, X, y, n_samples=5, epsilon=1e-5, tol=1e-4, seed=0):
 
     return results
 
-# Initialize trainable parameters
-rng_weights = np.random.default_rng(42)
-rng_batches = np.random.default_rng(123)
-
 # Set hyperparameters for training
 batch_size = 32 # Batch size for training
 epochs = 30 # Number of epochs to train the model
 patience = 5 # Number of epochs to wait for improvement before early stopping
 epoch_without_improvement = 0 # Counter for epochs without improvement
-learning_rate = 0.1 # Learning rate for gradient descent
+learning_rate = 0.01 # Learning rate for gradient descent
+l2_lambda = 0.001 # L2 regularization strength
 hidden1 = 64 # Number of neurons in the first hidden layer
 hidden2 = 32 # Number of neurons in the second hidden layer
+
+weight_seed = 123 # Seed for weight initialization to ensure reproducibility
+batch_seed = 456 # Seed for batch shuffling to ensure reproducibility
+
+rng_weights = np.random.default_rng(weight_seed)
+rng_batches = np.random.default_rng(batch_seed)
 
 # Initialize variables to track the best validation loss and corresponding epoch and parameters
 best_val_loss = float("inf")
@@ -235,6 +244,11 @@ for epoch in range(epochs):
 
         # Unpack the gradients
         dW1, db1, dW2, db2, dW3, db3 = backward(X_batch, y_batch, P, cache, W2, W3)
+
+        # l2 regularization
+        dW1 += l2_lambda * W1
+        dW2 += l2_lambda * W2
+        dW3 += l2_lambda * W3
 
         # Update the weights and biases using gradient descent
         W3 -= learning_rate * dW3
@@ -297,6 +311,29 @@ print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_v
 epoch_completed = len(history["train_loss"])
 epoch_numbers = range(1, epoch_completed + 1)
 
+# Save the best model parameters to a compressed .npz file
+model_path = Path("model/doodle_ann_v1.npz")
+model_path.parent.mkdir(parents=True, exist_ok=True)
+
+np.savez_compressed(
+    model_path,
+
+    W1=best_params[0],
+    b1=best_params[1],
+
+    W2=best_params[2],
+    b2=best_params[3],
+
+    W3=best_params[4],
+    b3=best_params[5],
+
+    categories=np.array(categories),
+    input_size=input_size,
+    normalization_divisor=255.0
+)
+
+print(f"Model saved to: {model_path}")
+
 # Confusion matrix
 cm = np.zeros((num_classes, num_classes), dtype=int)
 
@@ -319,6 +356,37 @@ print(f"\nOverall Accuracy: {cm_accuracy:.2%}")
 for name, value in zip(class_names, recall):
     print(f"{name} Recall: {value:.2%}")
 print("Total predictions:", cm.sum())
+
+star_id = categories.index("star")
+sun_id = categories.index("sun")
+
+star_to_sun = cm[star_id, sun_id]
+sun_to_star = cm[sun_id, star_id]
+
+print(f"Star → Sun: {star_to_sun}")
+print(f"Sun → Star: {sun_to_star}")
+print(f"Total mutual confusion: {star_to_sun + sun_to_star}")
+
+# Temporary analysis of misclassifications between "star" and "sun"
+star_id = categories.index("star")
+sun_id = categories.index("sun")
+
+mistakes = np.where((y_val == star_id) & (y_pred == sun_id))[0]
+print("Stars predicted as Sun:", len(mistakes))
+
+print("\nStar vs Sun Probability Comparison")
+
+for idx in mistakes[:9]:
+    star_prob = P_best[idx, star_id]
+    sun_prob = P_best[idx, sun_id]
+
+    margin = sun_prob - star_prob
+
+    print(
+        f"Star: {star_prob:.2%} | "
+        f"Sun: {sun_prob:.2%} | "
+        f"Margin: {margin:.2%}"
+    )
 
 # Plot the confusion matrix
 display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
@@ -357,3 +425,20 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
+# Plot the first 9 misclassified images (stars predicted as suns)
+idx = mistakes[0]
+fig, axes = plt.subplots(3, 3, figsize=(9, 9))
+
+for ax, idx in zip(axes.flat, mistakes[:9]):
+    image = X_val[idx].reshape(28, 28)
+
+    predicted_class = y_pred[idx]
+    confidence = P_best[idx, predicted_class]
+
+    ax.imshow(image, cmap="gray")
+    ax.set_title(f"Sun: {confidence:.1%}")
+    ax.axis("off")
+
+plt.suptitle("Actual Star, Predicted Sun")
+plt.tight_layout()
+plt.show()
