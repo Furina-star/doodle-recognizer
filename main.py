@@ -310,13 +310,15 @@ print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_v
 
 epoch_completed = len(history["train_loss"])
 epoch_numbers = range(1, epoch_completed + 1)
+plots_directory = Path("plots")
+plots_directory.mkdir(parents=True, exist_ok=True)
 
 # Save the best model parameters to a compressed .npz file
-model_path = Path("model/doodle_ann_v1.npz")
-model_path.parent.mkdir(parents=True, exist_ok=True)
+models_path = Path("model/doodle_ann_v1.npz")
+models_path.parent.mkdir(parents=True, exist_ok=True)
 
 np.savez_compressed(
-    model_path,
+    models_path,
 
     W1=best_params[0],
     b1=best_params[1],
@@ -332,12 +334,12 @@ np.savez_compressed(
     normalization_divisor=255.0
 )
 
-print(f"Model saved to: {model_path}")
+print(f"Model saved to: {models_path}")
 
 # Confusion matrix
 cm = np.zeros((num_classes, num_classes), dtype=int)
 
-print("Confusion Matrix:")
+print("\nConfusion Matrix:")
 for actual, predicted in zip(y_val, y_pred):
     cm[actual, predicted] += 1
 print(cm)
@@ -352,46 +354,15 @@ assert np.isclose(cm_accuracy, best_val_acc)
 
 class_names = [category.title() for category in categories]
 
-print(f"\nOverall Accuracy: {cm_accuracy:.2%}")
 for name, value in zip(class_names, recall):
     print(f"{name} Recall: {value:.2%}")
-print("Total predictions:", cm.sum())
-
-star_id = categories.index("star")
-sun_id = categories.index("sun")
-
-star_to_sun = cm[star_id, sun_id]
-sun_to_star = cm[sun_id, star_id]
-
-print(f"Star → Sun: {star_to_sun}")
-print(f"Sun → Star: {sun_to_star}")
-print(f"Total mutual confusion: {star_to_sun + sun_to_star}")
-
-# Temporary analysis of misclassifications between "star" and "sun"
-star_id = categories.index("star")
-sun_id = categories.index("sun")
-
-mistakes = np.where((y_val == star_id) & (y_pred == sun_id))[0]
-print("Stars predicted as Sun:", len(mistakes))
-
-print("\nStar vs Sun Probability Comparison")
-
-for idx in mistakes[:9]:
-    star_prob = P_best[idx, star_id]
-    sun_prob = P_best[idx, sun_id]
-
-    margin = sun_prob - star_prob
-
-    print(
-        f"Star: {star_prob:.2%} | "
-        f"Sun: {sun_prob:.2%} | "
-        f"Margin: {margin:.2%}"
-    )
+print("Total predictions:", cm.sum(), "\n")
 
 # Plot the confusion matrix
 display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
 display.plot(cmap="Blues", values_format="d")
 plt.title("Doodle Recognizer - Confusion Matrix")
+display.figure_.savefig(plots_directory / "confusion_matrix.png",dpi=200,bbox_inches="tight")
 plt.show()
 
 # Plot the training and validation loss
@@ -406,6 +377,8 @@ plt.title("Doodle Recognizer - Loss Curves")
 
 plt.legend()
 plt.grid(True)
+plt.tight_layout()
+plt.savefig(plots_directory / "loss_curves.png",dpi=200,bbox_inches="tight")
 plt.show()
 
 # Plot the training and validation accuracy
@@ -423,22 +396,11 @@ plt.xticks(epoch_numbers)
 
 plt.legend()
 plt.grid(True)
-plt.show()
-
-# Plot the first 9 misclassified images (stars predicted as suns)
-idx = mistakes[0]
-fig, axes = plt.subplots(3, 3, figsize=(9, 9))
-
-for ax, idx in zip(axes.flat, mistakes[:9]):
-    image = X_val[idx].reshape(28, 28)
-
-    predicted_class = y_pred[idx]
-    confidence = P_best[idx, predicted_class]
-
-    ax.imshow(image, cmap="gray")
-    ax.set_title(f"Sun: {confidence:.1%}")
-    ax.axis("off")
-
-plt.suptitle("Actual Star, Predicted Sun")
 plt.tight_layout()
+plt.savefig(plots_directory / "accuracy_curves.png",dpi=200,bbox_inches="tight")
 plt.show()
+
+# Print the saved plot files
+for file in sorted(plots_directory.glob("*.png")):
+    print(f"Saved plot: {file}")
+
