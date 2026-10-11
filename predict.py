@@ -1,3 +1,10 @@
+"""
+This module provides functions to load a trained neural network model and predict the category of a doodle image.
+Functions:
+- load_model(model_path): Loads the model parameters, categories, input size, and normalization divisor from a specified .npz file.
+- predict_doodle(image, params, categories): Predicts the category of a doodle image using the provided model parameters and categories.
+"""
+
 import numpy as np
 from pathlib import Path
 from ann import forward
