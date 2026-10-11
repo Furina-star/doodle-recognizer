@@ -3,42 +3,47 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import ConfusionMatrixDisplay
 from matplotlib.ticker import PercentFormatter
+from pathlib import Path
 
-apple_data = np.load(
-    "data/raw/full_numpy_bitmap_apple.npy",
-    mmap_mode="r"
-)
+# Load the dataset from data/raw/
+categories = ["cat", "apple", "car"]
+sample_per_class = 5000
+num_classes = len(categories)
+data_directory = Path("data/raw")
 
-cat_data = np.load(
-    "data/raw/full_numpy_bitmap_cat.npy",
-    mmap_mode="r"
-)
+# Container store data in a lists
+image_parts = []
+label_parts = []
 
-car_data = np.load(
-    "data/raw/full_numpy_bitmap_car.npy",
-    mmap_mode="r"
-)
+# Load images and labels for each category
+for label, category in enumerate(categories):
+    filename = f"full_numpy_bitmap_{category}.npy"
+    file_path = data_directory / filename
 
-cat_images = cat_data[:5000].astype(np.float32) / 255.0 # Normalize the pixel values to be between 0 and 1
-cat_labels = np.full(len(cat_images), 0, dtype=np.int64)
+    data = np.load(file_path, mmap_mode="r")
 
-apple_images = apple_data[:5000].astype(np.float32) / 255.0 # Normalize the pixel values to be between 0 and 1
-apple_labels = np.full(len(apple_images), 1, dtype=np.int64)
+    images = data[:sample_per_class].astype(np.float32) / 255.0  # Normalize pixel values to [0, 1]
+    labels = np.full(len(images), label, dtype=np.int64)  # Create labels for the images
 
-car_images = car_data[:5000].astype(np.float32) / 255.0 # Normalize the pixel values to be between 0 and 1
-car_labels = np.full(len(car_images), 2, dtype=np.int64)
+    image_parts.append(images)
+    label_parts.append(labels)
 
-# Concatenate the images of cats, apples, and cars into a single array
-X = np.concatenate(
-    (cat_images, apple_images, car_images),
-    axis=0
-)
+# Concatenate all images and labels into single arrays
+X = np.concatenate(image_parts, axis=0)
+y = np.concatenate(label_parts, axis=0)
 
-# Concatenate the labels of cats, apples, and cars into a single array
-y = np.concatenate(
-    (cat_labels, apple_labels, car_labels),
-    axis=0
-)
+# Dataset information
+print("Categories:", categories)
+print("Total images:", X.shape)
+print("Labels:", y.shape)
+print("Samples per class:", np.bincount(y))
+
+print("Dataset information verified successfully.\n")
+
+assert X.shape[1] == 784
+assert len(X) == len(y)
+assert len(np.unique(y)) == num_classes
+
 
 # Randomly shuffle the dataset to ensure that the order of the images and labels is mixed
 rng = np.random.default_rng(seed=42) # Create a random number generator with a fixed seed for reproducibility
@@ -98,7 +103,7 @@ def backward(X_batch, y_batch, P, cache, W2, W3):
 
     # Backpropagation for the output layer
     N = len(y_batch)
-    Y = np.eye(3, dtype=P.dtype)[y_batch]
+    Y = np.eye(P.shape[1], dtype=P.dtype)[y_batch]
     dZ3 = (P - Y) / N
 
     dW3 = A2.T @ dZ3
@@ -191,9 +196,9 @@ W2 = rng_weights.standard_normal((hidden1, hidden2)).astype(np.float32)
 W2 *= np.sqrt(2 / hidden1)
 b2 = np.zeros((1, hidden2), dtype=np.float32)
 
-W3 = rng_weights.standard_normal((hidden2, 3)).astype(np.float32)
+W3 = rng_weights.standard_normal((hidden2, num_classes)).astype(np.float32)
 W3 *= np.sqrt(2 / hidden2)
-b3 = np.zeros((1, 3), dtype=np.float32)
+b3 = np.zeros((1, num_classes), dtype=np.float32)
 
 # Gradient Checking (the call is what makes it print)
 gradient_check([W1, b1, W2, b2, W3, b3], X_train[:8], y_train[:8])
@@ -280,7 +285,7 @@ for epoch in range(epochs):
         print(f"Early stopping at Epoch {epoch + 1}. ", f"Best epoch was {best_epoch}.")
         break
 
-# After training: verify the checkpoint, then report on the held-out test set
+# Verify that the best parameters yield the same validation loss as recorded
 P_best, _ = forward(X_val, *best_params)
 y_pred = np.argmax(P_best, axis=1)
 verified_best_loss = cross_entropy(P_best, y_val)
@@ -293,7 +298,7 @@ epoch_completed = len(history["train_loss"])
 epoch_numbers = range(1, epoch_completed + 1)
 
 # Confusion matrix
-cm = np.zeros((3, 3), dtype=int)
+cm = np.zeros((num_classes, num_classes), dtype=int)
 
 print("Confusion Matrix:")
 for actual, predicted in zip(y_val, y_pred):
@@ -308,16 +313,14 @@ assert cm.sum() == len(y_val)
 cm_accuracy = np.trace(cm) / cm.sum()
 assert np.isclose(cm_accuracy, best_val_acc)
 
-print(f"\nOverall Accuracy: {cm_accuracy:.2%}")
-print(f"Cat Recall: {recall[0]:.2%}")
-print(f"Apple Recall: {recall[1]:.2%}")
-print(f"Car Recall: {recall[2]:.2%}")
+class_names = [category.title() for category in categories]
 
+print(f"\nOverall Accuracy: {cm_accuracy:.2%}")
+for name, value in zip(class_names, recall):
+    print(f"{name} Recall: {value:.2%}")
 print("Total predictions:", cm.sum())
 
 # Plot the confusion matrix
-class_names = ["Cat", "Apple", "Car"]
-
 display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
 display.plot(cmap="Blues", values_format="d")
 plt.title("Doodle Recognizer - Confusion Matrix")
