@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import ConfusionMatrixDisplay
 from matplotlib.ticker import PercentFormatter
 from pathlib import Path
+from ann import forward, backward, cross_entropy
 
 # Load the dataset from data/raw/
 categories = [
@@ -73,63 +74,6 @@ X_val, X_test, y_val, y_test= train_test_split(
     stratify= y_temp,
     random_state= 42,
 )
-
-# Forward Propagation
-def forward (X, W1, b1, W2, b2, W3, b3):
-    Z1 = X @ W1 + b1
-    A1 = np.maximum(0, Z1)  # ReLU activation
-
-    Z2 = A1 @ W2 + b2
-    A2 = np.maximum(0, Z2)  # ReLU activation
-
-    Z3 = A2 @ W3 + b3
-    P = softmax(Z3)  # Softmax activation for output layer
-
-    cache = (Z1, A1, Z2, A2)
-    return P, cache
-
-# Softmax activation function for the output layer
-def softmax(z):
-    shifted = z - np.max(z, axis=1, keepdims=True)
-    exp_values = np.exp(shifted)
-
-    return exp_values / np.sum(exp_values, axis=1, keepdims=True)
-
-# Calculate the categorical cross-entropy loss for the batch
-def cross_entropy(P, y):
-    correct_probs = P[np.arange(len(y)), y]
-    safe_probs = np.clip(correct_probs, 1e-12, 1.0)
-
-    return -np.mean(np.log(safe_probs))
-
-
-# Backpropagation for the output layer
-def backward(X_batch, y_batch, P, cache, W2, W3):
-    Z1, A1, Z2, A2 = cache
-
-    # Backpropagation for the output layer
-    N = len(y_batch)
-    Y = np.eye(P.shape[1], dtype=P.dtype)[y_batch]
-    dZ3 = (P - Y) / N
-
-    dW3 = A2.T @ dZ3
-    db3 = np.sum(dZ3, axis=0, keepdims=True)
-
-    # Backpropagation for the second hidden layer
-    dA2 = dZ3 @ W3.T
-    dZ2 = dA2 * (Z2 > 0)
-
-    dW2 = A1.T @ dZ2
-    db2 = np.sum(dZ2, axis=0, keepdims=True)
-
-    # Backpropagation for the first hidden layer
-    dA1 = dZ2 @ W2.T
-    dZ1 = dA1 * (Z1 > 0)
-
-    dW1 = X_batch.T @ dZ1
-    db1 = np.sum(dZ1, axis=0, keepdims=True)
-
-    return dW1, db1, dW2, db2, dW3, db3
 
 # Gradient Checking
 PARAM_NAMES = ("W1", "b1", "W2", "b2", "W3", "b3")
@@ -336,6 +280,50 @@ np.savez_compressed(
 
 print(f"Model saved to: {models_path}")
 
+# Load the saved ANN
+with np.load(models_path, allow_pickle=False) as saved_model:
+    loaded_params = [
+        saved_model["W1"],
+        saved_model["b1"],
+        saved_model["W2"],
+        saved_model["b2"],
+        saved_model["W3"],
+        saved_model["b3"]
+    ]
+
+    loaded_categories = saved_model["categories"].tolist()
+
+    loaded_input_size = int(saved_model["input_size"])
+    loaded_divisor = float(saved_model["normalization_divisor"])
+
+print("Loaded categories:", loaded_categories)
+print("Loaded input size:", loaded_input_size)
+print("Loaded normalization divisor:", loaded_divisor)
+
+parameter_names = ["W1", "b1", "W2", "b2", "W3", "b3"]
+
+for name, parameter in zip(parameter_names, loaded_params):
+    print(f"{name}: {parameter.shape}")
+
+# Predictions using loaded parameters
+P_loaded, _ = forward(X_val, *loaded_params)
+
+# Compare predictions
+difference = np.max(np.abs(P_best - P_loaded))
+
+print("Maximum probability difference:", difference)
+
+assert np.allclose(P_best, P_loaded)
+assert np.array_equal(
+    np.argmax(P_best, axis=1),
+    np.argmax(P_loaded, axis=1)
+)
+
+print("Model loading verification: PASSED")
+
+loaded_validation = np.argmax(P_loaded, axis=1)
+print(f"Loaded model validation accuracy: {np.mean(loaded_validation == y_val):.2%}")
+
 # Confusion matrix
 cm = np.zeros((num_classes, num_classes), dtype=int)
 
@@ -363,7 +351,6 @@ display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names
 display.plot(cmap="Blues", values_format="d")
 plt.title("Doodle Recognizer - Confusion Matrix")
 display.figure_.savefig(plots_directory / "confusion_matrix.png",dpi=200,bbox_inches="tight")
-plt.show()
 
 # Plot the training and validation loss
 plt.figure(figsize=(8, 5))
@@ -379,7 +366,6 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.savefig(plots_directory / "loss_curves.png",dpi=200,bbox_inches="tight")
-plt.show()
 
 # Plot the training and validation accuracy
 plt.figure(figsize=(8, 5))
@@ -398,7 +384,6 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.savefig(plots_directory / "accuracy_curves.png",dpi=200,bbox_inches="tight")
-plt.show()
 
 # Print the saved plot files
 for file in sorted(plots_directory.glob("*.png")):
