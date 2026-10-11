@@ -165,23 +165,33 @@ def gradient_check(params, X, y, n_samples=5, epsilon=1e-5, tol=1e-4, seed=0):
     return results
 
 # Initialize trainable parameters
-rng = np.random.default_rng(42)
+rng_weights = np.random.default_rng(42)
+rng_batches = np.random.default_rng(123)
 
-W1 = rng.standard_normal((784, 16)).astype(np.float32)
+# Set hyperparameters for training
+batch_size = 32 # Batch size for training
+epochs = 5 # Number of epochs to train the model
+learning_rate = 0.1 # Learning rate for gradient descent
+hidden1 = 32 # Number of neurons in the first hidden layer
+hidden2 = 16 # Number of neurons in the second hidden layer
+
+# Initialize variables to track the best validation loss and corresponding epoch and parameters
+best_val_loss = float("inf")
+best_epoch = 0
+best_params = None
+
+input_size = X_train.shape[1]
+W1 = rng_weights.standard_normal((input_size, hidden1)).astype(np.float32)
 W1 *= np.sqrt(2 / 784)
-b1 = np.zeros((1, 16), dtype=np.float32)
+b1 = np.zeros((1, hidden1), dtype=np.float32)
 
-W2 = rng.standard_normal((16, 8)).astype(np.float32)
-W2 *= np.sqrt(2 / 16)
-b2 = np.zeros((1, 8), dtype=np.float32)
+W2 = rng_weights.standard_normal((hidden1, hidden2)).astype(np.float32)
+W2 *= np.sqrt(2 / hidden1)
+b2 = np.zeros((1, hidden2), dtype=np.float32)
 
-W3 = rng.standard_normal((8, 3)).astype(np.float32)
-W3 *= np.sqrt(2 / 8)
+W3 = rng_weights.standard_normal((hidden2, 3)).astype(np.float32)
+W3 *= np.sqrt(2 / hidden2)
 b3 = np.zeros((1, 3), dtype=np.float32)
-
-batch_size = 32
-epochs = 5
-learning_rate = 0.01
 
 # Gradient Checking (the call is what makes it print)
 gradient_check([W1, b1, W2, b2, W3, b3], X_train[:8], y_train[:8])
@@ -196,11 +206,16 @@ history = {
 
 # Training loop
 for epoch in range(epochs):
+
+    # Compute validation loss and accuracy at the beginning of each epoch
+    P_val, _ = forward(X_val, W1, b1, W2, b2, W3, b3)
+    val_loss = cross_entropy(P_val, y_val)
+
     epoch_loss = 0.0
     epoch_correct = 0
     epoch_samples = 0
 
-    indices = rng.permutation(len(X_train))
+    indices = rng_batches.permutation(len(X_train))
 
     for start in  range(0,len(X_train), batch_size):
         batch_indices = indices[start:start + batch_size]
@@ -252,12 +267,17 @@ P_train_final, _ = forward(X_train, W1, b1, W2, b2, W3, b3)
 
 train_predictions = np.argmax(P_train_final, axis=1)
 final_train_acc = np.mean(train_predictions == y_train)
+train_end_accuracy = np.mean(np.argmax(P_train_final, axis=1) == y_train)
+train_end_loss = cross_entropy(P_train_final, y_train)
 
-print(f"Final Training Accuracy: {final_train_acc:.2%}")
-print(f"Final Validation Accuracy: {val_accuracy:.2%}")
+print(f"End Training Accuracy: {final_train_acc:.2%}")
+print(f"End Validation Accuracy: {val_accuracy:.2%}")
+print(f"End Training Loss: {train_end_loss:.4f}")
+print(f"End Validation Loss: {train_end_accuracy:.4f}")
 
 epoch_numbers = range(1, epochs + 1)
 
+"""
 # Plot the training and validation loss
 plt.figure(figsize=(8, 5))
 
@@ -288,3 +308,4 @@ plt.xticks(epoch_numbers)
 plt.legend()
 plt.grid(True)
 plt.show()
+"""
