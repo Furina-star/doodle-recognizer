@@ -1,5 +1,7 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from matplotlib.ticker import PercentFormatter
 
 apple_data = np.load(
     "data/raw/full_numpy_bitmap_apple.npy",
@@ -137,6 +139,59 @@ batch_size = 32
 epochs = 5
 learning_rate = 0.01
 
+# Gradient Checking
+X_check = X_train[:8]
+y_check = y_train[:8]
+
+W3_check = W3.astype(np.float64).copy()
+
+P_check, cache_check = forward(X_check, W1, b1, W2, b2, W3_check, b3)
+
+gradients = backward(X_check, y_check, P_check, cache_check, W2, W3_check)
+
+dW3_check = gradients[4]
+
+row, col = np.unravel_index(np.argmax(np.abs(dW3_check)), dW3_check.shape)
+analytical = dW3_check[row, col]
+original = W3_check[row, col]
+
+epsilon = 1e-5
+
+# Increase the weight slightly
+W3_check[row, col] = original + epsilon
+
+P_plus, _ = forward(X_check, W1, b1, W2, b2, W3_check, b3)
+
+loss_plus = cross_entropy(P_plus, y_check)
+
+# Decrease the weight slightly
+W3_check[row, col] = original - epsilon
+
+P_minus, _ = forward(X_check, W1, b1, W2, b2, W3_check, b3)
+
+loss_minus = cross_entropy(P_minus, y_check)
+
+W3_check[row, col] = original
+
+# Compute the numerical gradient
+numerical = (loss_plus - loss_minus) / (2 * epsilon)
+
+print("Analytical Gradient:", analytical)
+print("Numerical Gradient:", numerical)
+
+# Check if the analytical and numerical gradients passed through Relative Error formula
+relative_error = abs(analytical - numerical) / max(1e-8, abs(analytical) + abs(numerical))
+print("Relative Error:", relative_error)
+print("Gradient Check Passed:", relative_error < 1e-4)
+
+# Initialize history dictionary to store training and validation loss and accuracy
+history = {
+    "train_loss": [],
+    "val_loss": [],
+    "train_acc": [],
+    "val_acc": [],
+}
+
 # Training loop
 for epoch in range(epochs):
     epoch_loss = 0.0
@@ -178,6 +233,11 @@ for epoch in range(epochs):
     val_predictions = np.argmax(P_val, axis=1)
     val_accuracy = np.sum(val_predictions == y_val) / len(y_val)
 
+    history["train_loss"].append(avg_loss)
+    history["val_loss"].append(val_loss)
+    history["train_acc"].append(accuracy)
+    history["val_acc"].append(val_accuracy)
+
     print(
         f"Epoch {epoch + 1}/{epochs} | "
         f"Train Loss: {avg_loss:.4f} | "
@@ -186,6 +246,43 @@ for epoch in range(epochs):
         f"Val Acc: {val_accuracy:.2%}"
     )
 
+P_train_final, _ = forward(X_train, W1, b1, W2, b2, W3, b3)
 
+train_predictions = np.argmax(P_train_final, axis=1)
+final_train_acc = np.mean(train_predictions == y_train)
 
+print(f"Final Training Accuracy: {final_train_acc:.2%}")
+print(f"Final Validation Accuracy: {val_accuracy:.2%}")
 
+epoch_numbers = range(1, epochs + 1)
+
+# Plot the training and validation loss
+plt.figure(figsize=(8, 5))
+
+plt.plot(epoch_numbers, history["train_loss"], label="Training Loss")
+plt.plot(epoch_numbers, history["val_loss"], label="Validation Loss")
+
+plt.xlabel("Epoch")
+plt.ylabel("Cross-Entropy Loss")
+plt.title("Doodle Recognizer - Loss Curves")
+
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot the training and validation accuracy
+plt.figure(figsize=(8, 5))
+
+plt.plot(epoch_numbers, history["train_acc"], label="Training Accuracy")
+plt.plot(epoch_numbers, history["val_acc"], label="Validation Accuracy")
+
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("Doodle Recognizer - Accuracy Curves")
+
+plt.gca().yaxis.set_major_formatter(PercentFormatter(1.0))
+plt.xticks(epoch_numbers)
+
+plt.legend()
+plt.grid(True)
+plt.show()
