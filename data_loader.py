@@ -1,3 +1,10 @@
+"""
+This module provides a function to load and preprocess datasets for machine learning tasks.
+It reads image data from .npy files, normalizes the pixel values, creates labels, shuffles the dataset, and splits it into training, validation, and test sets.
+The function `load_datasets` takes a list of categories, the number of samples per class, and the data directory as input parameters.
+It returns the training, validation, and test datasets along with their corresponding labels.
+"""
+
 import numpy as np
 from pathlib import Path
 from sklearn.model_selection import train_test_split
@@ -62,7 +69,4 @@ def load_datasets(categories, sample_per_class=5000, data_directory="data/raw"):
         random_state=42,
     )
 
-    return (
-        X_train, X_val, X_test,
-        y_train, y_val, y_test
-    )
+    return X_train, X_val, X_test, y_train, y_val, y_test

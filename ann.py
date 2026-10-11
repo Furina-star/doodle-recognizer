@@ -1,3 +1,12 @@
+"""
+This module implements a simple feedforward neural network with two hidden layers and ReLU activation functions.
+The network is designed for multi-class classification tasks and uses the softmax function for the output layer
+and categorical cross-entropy loss for training. The network is trained using mini-batch gradient descent
+with backpropagation to update the weights and biases.
+The forward function computes the output probabilities of the network given an input batch, while the backward function computes the gradients of the loss with respect to the weights and biases for backpropagation.
+The cross_entropy function calculates the loss for a batch of predictions and true labels.
+"""
+
 import numpy as np
 
 # Forward Propagation
