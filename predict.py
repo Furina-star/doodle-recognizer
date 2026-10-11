@@ -1,0 +1,49 @@
+import numpy as np
+from pathlib import Path
+from ann import forward
+
+def load_model(model_path="model/doodle_ann_v1.npz"):
+    model_path = Path(model_path)
+
+    with np.load(model_path, allow_pickle=False) as saved:
+        params = [
+            saved["W1"],
+            saved["b1"],
+            saved["W2"],
+            saved["b2"],
+            saved["W3"],
+            saved["b3"]
+        ]
+
+        categories = saved["categories"].tolist()
+        input_size = int(saved["input_size"])
+        divisor = float(saved["normalization_divisor"])
+
+    return params, categories, input_size, divisor
+
+# Predict the category of a doodle image
+def predict_doodle(image, params, categories):
+    image = np.asarray(image, dtype=np.float32)
+
+    expected_size = params[0].shape[0]
+
+    if image.size != expected_size:
+        raise ValueError(
+            f"Expected {expected_size} pixels, got {image.size}"
+        )
+
+    if not np.all(np.isfinite(image)) or np.any(image < 0) or np.any(image > 1):
+        raise ValueError("Image pixels must be finite values between 0 and 1")
+
+    image_batch = image.reshape(1, expected_size)
+
+    probabilities, _ = forward(image_batch, *params)
+
+    probabilities = probabilities[0]
+
+    predicted_id = int(np.argmax(probabilities))
+    predicted_category = categories[predicted_id]
+    confidence = float(probabilities[predicted_id])
+
+    return predicted_category, confidence, probabilities
+
