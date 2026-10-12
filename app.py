@@ -5,6 +5,7 @@ A simple Gradio app for recognizing doodles.
 import gradio as gr
 import numpy as np
 import tempfile
+import os
 
 from pathlib import Path
 from PIL import Image
@@ -16,25 +17,34 @@ params, categories, input_size, divisor = load_model()
 
 # Gradio interface function to load the composite image from the editor data
 def load_composite_image(editor_data):
+    # Validate the editor data and extract the composite image path
     if not isinstance(editor_data, dict):
         raise gr.Error("Please draw something first.")
 
     composite = editor_data.get("composite")
 
+    # Validate the composite data and extract the file path
     if not isinstance(composite, dict):
         raise gr.Error("The drawing image is unavailable.")
 
     file_path = composite.get("path")
 
+    # Validate the file path and ensure it is a string
     if not isinstance(file_path, str):
         raise gr.Error("Invalid drawing data.")
 
     path = Path(file_path).resolve()
-    gradio_temp = (Path(tempfile.gettempdir()) / "gradio").resolve()
+    gradio_temp = Path(os.environ.get("GRADIO_TEMP_DIR")or Path(tempfile.gettempdir()) / "gradio").resolve()
 
+    # Ensure the path is within the Gradio temporary directory to prevent directory traversal attacks
     if not path.is_relative_to(gradio_temp):
         raise gr.Error("Unexpected drawing file location.")
 
+    # Check that the file has a .png extension
+    if path.suffix.lower() != ".png":
+        raise gr.Error("Expected a PNG drawing image.")
+
+    # Load the image using PIL and handle any potential errors
     try:
         with Image.open(path) as image:
             image.load()
@@ -49,7 +59,8 @@ def load_composite_image(editor_data):
 
 # Gradio interface function to recognize the drawing
 def recognize_drawing(editor_data, auto_center, enhance_strokes):
-    if editor_data is None or editor_data.get("composite") is None:
+    # Validate the editor data and ensure it contains the composite image
+    if not isinstance(editor_data, dict) or editor_data.get("composite") is None:
         raise gr.Error("Please draw something first.")
 
     image = load_composite_image(editor_data)
