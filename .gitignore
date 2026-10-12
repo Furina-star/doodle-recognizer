@@ -1,11 +1,27 @@
-# Ignore Python bytecode files
-*.pyc
-*.pyo
-*.pyd
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
 
-# Ignore virtual environment folders
+# Virtual environments
 .venv/
-.idea
+venv/
 
-# Ignore all .npy files in the raw data folder
+# IDE settings
+.idea/
+.vscode/
+
+# Local configuration
+.env
+.env.*
+
+# Test and development caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Raw Quick Draw dataset
 data/raw/*.npy
+
+# Operating system files
+.DS_Store
+Thumbs.db

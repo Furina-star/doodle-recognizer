@@ -7,7 +7,6 @@ import unittest
 import numpy as np
 
 from PIL import Image, ImageDraw
-from ann import softmax
 from predict import load_model, predict_doodle
 from preprocessing import preprocess_image
 
