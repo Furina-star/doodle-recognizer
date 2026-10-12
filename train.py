@@ -42,6 +42,11 @@ def gradient_check(params, X, y, n_samples=5, epsilon=1e-5, tol=1e-4, seed=0):
             numerical = (loss_plus - loss_minus) / (2 * epsilon)
             analytical = grad[idx]
             error = abs(analytical - numerical) / max(1e-8, abs(analytical) + abs(numerical))
+
+            # Handle cases where the error is not finite (e.g., due to division by zero)
+            if not np.isfinite(error):
+                error = float("inf")
+
             worst_error = max(worst_error, error)
 
         results[name] = worst_error

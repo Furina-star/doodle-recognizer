@@ -26,7 +26,6 @@ X_train, X_val, X_test, y_train, y_val, y_test = load_datasets(
 batch_size = 32 # Batch size for training
 epochs = 30 # Number of epochs to train the model
 patience = 5 # Number of epochs to wait for improvement before early stopping
-epoch_without_improvement = 0 # Counter for epochs without improvement
 learning_rate = 0.01 # Learning rate for gradient descent
 l2_lambda = 0.001 # L2 regularization strength
 hidden1 = 64 # Number of neurons in the first hidden layer
@@ -43,7 +42,13 @@ input_size = X_train.shape[1]
 W1, b1, W2, b2, W3, b3 = initialize_parameters(input_size,hidden1,hidden2,num_classes,rng_weights)
 
 # Gradient Checking (the call is what makes it print)
-gradient_check([W1, b1, W2, b2, W3, b3], X_train[:8], y_train[:8])
+gradient_tolerance = 1e-4
+gradient_errors = gradient_check([W1, b1, W2, b2, W3, b3], X_train[:8], y_train[:8], tol=gradient_tolerance)
+
+if not gradient_errors or any(not np.isfinite(error) or error >= gradient_tolerance for error in gradient_errors.values()):
+    raise RuntimeError("Gradient checking failed. Training aborted.")
+
+print("All gradient checks passed. Proceeding to training.")
 
 # Call the train_model function to train the model and obtain the best parameters and training history
 best_params, history, best_epoch, best_val_loss, best_val_acc = train_model(
