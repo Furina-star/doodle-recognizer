@@ -9,8 +9,16 @@ import numpy as np
 from pathlib import Path
 from ann import forward
 
+# Local path to the project root directory, used for loading model files
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+# Load the trained model parameters, categories, input size, and normalization divisor from a .npz file
 def load_model(model_path="model/doodle_ann_v1.npz"):
     model_path = Path(model_path)
+
+    # If the provided model path is not absolute, resolve it relative to the project root
+    if not model_path.is_absolute():
+        model_path = PROJECT_ROOT / model_path
 
     with np.load(model_path, allow_pickle=False) as saved:
         params = [

@@ -5,6 +5,9 @@ from data_loader import load_datasets
 from train import gradient_check, initialize_parameters, train_model
 from evaluate import evaluate_model
 
+# Define the root directory of the project
+PROJECT_ROOT = Path(__file__).resolve().parent
+
 # Define the categories for the doodle recognition task and the number of samples per class
 categories = [
     "cat", "apple", "car",
@@ -75,7 +78,7 @@ print(f"\nBest Epoch: {best_epoch}")
 print(f"Best Validation Loss: {best_val_loss:.4f} | Best Validation Acc: {best_val_acc:.2%}\n")
 
 # Save the best model parameters to a compressed .npz file
-models_path = Path("model/doodle_ann_v1.npz")
+models_path = PROJECT_ROOT / "model" / "doodle_ann_v1.npz"
 models_path.parent.mkdir(parents=True, exist_ok=True)
 
 np.savez_compressed(
@@ -142,7 +145,7 @@ loaded_validation = np.argmax(P_loaded, axis=1)
 print(f"Loaded model validation accuracy: {np.mean(loaded_validation == y_val):.2%}")
 
 # Evaluate the model using the evaluate_model function from evaluate.py
-cm, recall, evaluation_accuracy = evaluate_model(y_val=y_val, y_pred=y_pred, categories=categories, history=history, best_val_acc=best_val_acc, plots_directory="plots")
+cm, recall, evaluation_accuracy = evaluate_model(y_val=y_val, y_pred=y_pred, categories=categories, history=history, best_val_acc=best_val_acc, plots_directory=PROJECT_ROOT / "plots")
 
 
 

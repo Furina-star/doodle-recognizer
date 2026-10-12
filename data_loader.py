@@ -9,9 +9,17 @@ import numpy as np
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 
+# Define the root directory of the project
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+# Function to load datasets from .npy files
 def load_datasets(categories, sample_per_class=5000, data_directory="data/raw"):
     data_directory = Path(data_directory)
     num_classes = len(categories)
+
+    # If the provided data directory is not absolute, resolve it relative to the project root
+    if not data_directory.is_absolute():
+        data_directory = PROJECT_ROOT / data_directory
 
     # Container store data in a lists
     image_parts = []
