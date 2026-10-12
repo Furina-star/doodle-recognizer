@@ -121,7 +121,7 @@ with gr.Blocks(title="Doodle Recognizer", fill_width=True) as demo:
             )
 
             enhance_strokes = gr.Checkbox(
-                label="Enhance thin strokes (experimental)",
+                label="Thicken strokes (experimental)",
                 value=False
             )
 
