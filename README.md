@@ -141,7 +141,7 @@ The regression tests check model loading, prediction outputs, input validation, 
 
 Additional documentation is available in the `docs/` directory:
 
-- `ARCHITECTURE.md`: Neural network architecture and mathematical operations.
-- `TRAINING.md`: Dataset preparation and training configuration.
-- `EVALUATION.md`: Model evaluation and experimental results.
-- `PREPROCESSING.md`: Image processing and interface-related limitations.
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md): Neural network architecture and mathematical operations.
+- [TRAINING.md](docs/TRAINING.md): Dataset preparation and training configuration.
+- [EVALUATION.md](docs/EVALUATION.md): Model evaluation and experimental results.
+- [PREPROCESSING.md](docs/PREPROCESSING.md): Image processing and interface-related limitations.

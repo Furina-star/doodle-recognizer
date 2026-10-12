@@ -92,3 +92,5 @@ The training script generates these files from training and validation metrics:
 - [Validation confusion matrix](../plots/confusion_matrix.png)
 
 Final held-out results are documented in [EVALUATION.md](EVALUATION.md).
+
+Training metrics are accumulated from mini-batch predictions before parameter updates, while validation metrics are calculated using the model at the end of each epoch.
