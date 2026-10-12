@@ -10,10 +10,11 @@ The final output is a normalized numpy array suitable for model input.
 """
 
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 
 # Preprocess an image for model input
-def preprocess_image(image, crop_to_drawing=False):
+def preprocess_image(image, crop_to_drawing=False, enhance_strokes=False):
+    """Normalize a drawing, optionally centering it and thickening its strokes."""
 
     if not isinstance(image, Image.Image):
         raise TypeError("Expected a PIL Image")
@@ -48,6 +49,10 @@ def preprocess_image(image, crop_to_drawing=False):
     resized = grayscale.resize((28, 28), Image.Resampling.LANCZOS)
 
     inverted = ImageOps.invert(resized)
+
+    if enhance_strokes:
+        # Expand bright ink by one pixel in the model's 28x28 input.
+        inverted = inverted.filter(ImageFilter.MaxFilter(3))
 
     normalized = np.asarray(inverted, dtype=np.float32) / 255.0
 

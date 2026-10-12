@@ -7,7 +7,7 @@ import numpy as np
 import tempfile
 
 from pathlib import Path
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from predict import load_model, predict_doodle
 from preprocessing import preprocess_image
 
@@ -48,12 +48,12 @@ def load_composite_image(editor_data):
 
 
 # Gradio interface function to recognize the drawing
-def recognize_drawing(editor_data, auto_center):
+def recognize_drawing(editor_data, auto_center, enhance_strokes):
     if editor_data is None or editor_data.get("composite") is None:
         raise gr.Error("Please draw something first.")
 
     image = load_composite_image(editor_data)
-    processed = preprocess_image(image, crop_to_drawing=auto_center)
+    processed = preprocess_image(image, crop_to_drawing=auto_center, enhance_strokes=enhance_strokes,)
     if processed.size != input_size: raise gr.Error("Unexpected image size.")
     if np.max(processed) < 0.02: raise gr.Error("The canvas appears blank.")
     category, confidence, probabilities = predict_doodle(processed, params, categories)
@@ -99,7 +99,7 @@ with gr.Blocks(title="Doodle Recognizer", fill_width=True) as demo:
                 brush = gr.Brush(default_size=20, colors=["#000000"], color_mode="fixed"),
             )
 
-            gr.Markdown("Tip: Medium-thick strokes generally work betterfor this version of the model.")
+            gr.Markdown("Tip: Medium-thick strokes generally work better for this version of the model.")
 
         # RIGHT: Predictions, preview, and controls
         with gr.Column(scale=1, min_width=320):
@@ -120,6 +120,11 @@ with gr.Blocks(title="Doodle Recognizer", fill_width=True) as demo:
                 value=True
             )
 
+            enhance_strokes = gr.Checkbox(
+                label="Enhance thin strokes (experimental)",
+                value=False
+            )
+
             recognize_button = gr.Button(
                 "Recognize Drawing",
                 variant="primary"
@@ -127,7 +132,7 @@ with gr.Blocks(title="Doodle Recognizer", fill_width=True) as demo:
 
     recognize_button.click(
         fn=recognize_drawing,
-        inputs=[drawing, auto_center],
+        inputs=[drawing, auto_center, enhance_strokes],
         outputs=[predictions, processed_preview],
         preprocess=False
     )
